@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Циан — Заряженный помощник (мини‑игра)</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <section class="device" aria-label="Прототип экрана игры">
+        <div class="screen" id="screen">
+          <section class="start-screen" id="startScreen" role="dialog" aria-modal="true" aria-label="Старт игры">
+            <div class="start-screen__card">
+              <div class="start-screen__hero-wrap">
+                <img class="start-screen__hero" src="./asset/game-items/key1.png" alt="" />
+              </div>
+              <h1 class="start-screen__title">Ловите ключи — получайте полезные подарки</h1>
+
+              <div class="start-screen__controls" aria-label="Как управлять">
+                <div class="ctrl">
+                  <span class="ctrl__icon ctrl__icon--left" aria-hidden="true">
+                    <img src="./asset/game-items/ArrowRight.svg" alt="" />
+                  </span>
+                  <span class="ctrl__icon" aria-hidden="true">
+                    <img src="./asset/game-items/ArrowRight.svg" alt="" />
+                  </span>
+                </div>
+                <p class="start-screen__controlsText">Двигай ловитель влево и вправо</p>
+              </div>
+
+              <div class="start-screen__obstacles" aria-label="Кого избегать">
+                <div class="obstacles__row">
+                  <img class="obstacles__img" src="./asset/game-items/thief.png" alt="" />
+                  <img class="obstacles__img" src="./asset/game-items/granny.png" alt="" />
+                  <img class="obstacles__img" src="./asset/game-items/invis.png" alt="" />
+                </div>
+                <p class="start-screen__obstaclesText">Берегись мошенников, злых соседок и анонимов</p>
+              </div>
+
+              <button class="start-screen__cta" id="startBtn" type="button">Погнали!</button>
+            </div>
+          </section>
+
+          <header class="hud">
+            <div class="hud__score" aria-label="Ключи">
+              <span id="scoreNow">0</span><span class="hud__score-sep">/</span><span id="scoreTotal">20</span>
+            </div>
+            <div class="hud__lives-wrap">
+              <div class="hud__lives" aria-label="Жизни">
+                <span class="life life--heart is-on" aria-hidden="true">♥</span>
+                <span class="life life--heart is-on" aria-hidden="true">♥</span>
+                <span class="life life--heart is-on" aria-hidden="true">♥</span>
+                <span class="life life--heart is-on" aria-hidden="true">♥</span>
+                <span class="life life--heart is-on" aria-hidden="true">♥</span>
+              </div>
+            </div>
+            <button class="hud__close" type="button" aria-label="Закрыть">
+              <img class="hud__close-icon" src="./asset/game-items/Close.svg" alt="" />
+            </button>
+          </header>
+
+          <div class="arena" id="arena" aria-label="Поле игры">
+            <div class="items" id="items" aria-hidden="true"></div>
+            <div class="catcher" id="catcher" aria-label="Ловитель ключей">
+              <svg class="catcher__svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <path id="catcherOuter" class="catcher__outer" d="" />
+                <path id="catcherMid" class="catcher__mid" d="" />
+                <path id="catcherInner" class="catcher__inner" d="" />
+              </svg>
+              <button class="player" id="player" type="button" aria-label="Ловитель (влево/вправо)">
+                <img
+                  class="player__img"
+                  src="./asset/game-items/logo%20ball.svg"
+                  alt=""
+                  draggable="false"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
