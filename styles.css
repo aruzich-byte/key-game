@@ -99,6 +99,14 @@ body{
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     box-sizing: border-box;
   }
+
+  /* Start modal on phones: no top hero key, 32px top padding */
+  .start-screen__slide--intro{
+    padding-top: 32px;
+  }
+  .start-screen__slide--intro .start-screen__hero-wrap{
+    display: none;
+  }
 }
 
 /* Маленькие телефоны: без рамки/тени, полностью на экран */
