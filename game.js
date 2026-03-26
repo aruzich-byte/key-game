@@ -11,6 +11,19 @@
   const screen = document.getElementById("screen");
   const startScreen = document.getElementById("startScreen");
   const startBtn = document.getElementById("startBtn");
+  const rulesBtn = document.getElementById("rulesBtn");
+
+  const startSlideIntro = document.getElementById("startSlideIntro");
+  const startSlideRules = document.getElementById("startSlideRules");
+  const startPrizesList = document.getElementById("startPrizesList");
+
+  const introScreen = document.getElementById("introScreen");
+  const introStrip = document.getElementById("introStrip");
+  const introCatcher = document.getElementById("introCatcher");
+  const introHandle = document.getElementById("introHandle");
+  const introOuterPath = document.getElementById("introOuterPath");
+  const introMidPath = document.getElementById("introMidPath");
+  const introInnerPath = document.getElementById("introInnerPath");
 
   const scoreNowEl = document.getElementById("scoreNow");
   const scoreTotalEl = document.getElementById("scoreTotal");
@@ -25,8 +38,19 @@
     !midPath ||
     !innerPath ||
     !player ||
+    !introScreen ||
+    !introStrip ||
+    !introCatcher ||
+    !introHandle ||
+    !introOuterPath ||
+    !introMidPath ||
+    !introInnerPath ||
     !startScreen ||
     !startBtn ||
+    !rulesBtn ||
+    !startSlideIntro ||
+    !startSlideRules ||
+    !startPrizesList ||
     !scoreNowEl ||
     !scoreTotalEl
   )
@@ -39,18 +63,47 @@
   let running = false;
 
   const PRIZES = [
-    { id: "coupon", title: "Купон на жильё посуточно", desc: "Скидка на аренду жилья посуточно. Подробные условия в приложении Циан." },
-    { id: "early", title: "100 дней раннего доступа", desc: "Получите ранний доступ к новым функциям сервиса на 100 дней." },
+    { id: "coupon", title: "Купон на посуточную аренду", desc: "Скидка на аренду жилья посуточно. Подробные условия в приложении Циан." },
+    { id: "early", title: "100 дней раннего доступа к объявлениям от собственника", desc: "Получите ранний доступ к новым функциям сервиса на 100 дней." },
     { id: "realtor", title: "Скидка 10 000₽ на\u00A0услуги риелтора от\u00A0Циана", desc: "Скидка 10 000 рублей на услуги риелтора при оформлении сделки через Циан." },
   ];
   const PRIZE_FOOTER = "Подарок можно получить только один раз. Его можно передавать другим людям.";
 
+  function setActiveStartSlide(which) {
+    const showIntro = which === "intro";
+    startSlideIntro?.classList.toggle("is-active", showIntro);
+    startSlideRules?.classList.toggle("is-active", !showIntro);
+  }
+
+  function renderStartPrizes() {
+    if (!startPrizesList) return;
+    startPrizesList.innerHTML = PRIZES.map(
+      (p) => `
+        <div class="prize-item" data-prize-id="${p.id}">
+          <span class="prize-item__icon prize-item__icon--${p.id}" aria-hidden="true">
+            <img class="prize-item__iconImg" src="./asset/game-items/${p.id}.png" alt="" aria-hidden="true" />
+          </span>
+          <span class="prize-item__title">${p.title}</span>
+          <img class="prize-item__chevron" src="./asset/game-items/ChevronRight.svg" alt="" aria-hidden="true" />
+        </div>`
+    ).join("");
+  }
+
   function hideStart() {
+    introScreen.classList.add("is-hidden");
     startScreen.classList.add("is-hidden");
+    startScreen.classList.remove("start-screen--revealing");
+    startScreen.style.setProperty("--intro-reveal", "100%");
   }
 
   function showStart() {
+    introScreen.classList.add("is-hidden");
     startScreen.classList.remove("is-hidden");
+    startScreen.classList.remove("start-screen--revealing");
+    startScreen.style.setProperty("--intro-reveal", "100%");
+    setActiveStartSlide("intro");
+    introTarget = 1;
+    introNow = 1;
   }
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -145,6 +198,90 @@
     )} A ${rr.toFixed(2)} ${rr.toFixed(2)} 0 0 ${sweepFlag} ${P2.x.toFixed(2)} ${P2.y.toFixed(
       2
     )} L ${R.toFixed(2)} ${baseY.toFixed(2)} Z`;
+  }
+
+  /**
+   * Intro only: vertical base on the left (x=0), apex to the right.
+   * Same rounded-apex math as buildTrianglePath, different winding.
+   */
+  function buildLeftEdgeTrianglePath(baseTop, baseBottom, apexX, apexY, rView) {
+    const cornerTop = { x: 0, y: baseTop };
+    const cornerBot = { x: 0, y: baseBottom };
+    const apex = { x: apexX, y: apexY };
+
+    if (!rView || rView <= 0.01) {
+      return `M ${cornerTop.x.toFixed(2)} ${cornerTop.y.toFixed(2)} L ${apex.x.toFixed(2)} ${apex.y.toFixed(
+        2
+      )} L ${cornerBot.x.toFixed(2)} ${cornerBot.y.toFixed(2)} Z`;
+    }
+
+    const vL = { x: cornerTop.x - apex.x, y: cornerTop.y - apex.y };
+    const vR = { x: cornerBot.x - apex.x, y: cornerBot.y - apex.y };
+    const lenL = Math.hypot(vL.x, vL.y);
+    const lenR = Math.hypot(vR.x, vR.y);
+    if (!lenL || !lenR) {
+      return `M ${cornerTop.x.toFixed(2)} ${cornerTop.y.toFixed(2)} L ${apex.x.toFixed(2)} ${apex.y.toFixed(
+        2
+      )} L ${cornerBot.x.toFixed(2)} ${cornerBot.y.toFixed(2)} Z`;
+    }
+
+    const uL = { x: vL.x / lenL, y: vL.y / lenL };
+    const uR = { x: vR.x / lenR, y: vR.y / lenR };
+
+    const dot = clamp(uL.x * uR.x + uL.y * uR.y, -1, 1);
+    const theta = Math.acos(dot);
+    const half = theta / 2;
+    const tanHalf = Math.tan(half);
+    const sinHalf = Math.sin(half);
+
+    if (Math.abs(tanHalf) < 1e-6 || Math.abs(sinHalf) < 1e-6) {
+      return `M ${cornerTop.x.toFixed(2)} ${cornerTop.y.toFixed(2)} L ${apex.x.toFixed(2)} ${apex.y.toFixed(
+        2
+      )} L ${cornerBot.x.toFixed(2)} ${cornerBot.y.toFixed(2)} Z`;
+    }
+
+    let t = rView / tanHalf;
+    const maxT = Math.min(lenL, lenR) * 0.55;
+    if (t > maxT) {
+      t = maxT;
+      rView = t * tanHalf;
+    }
+
+    const P1 = { x: apex.x + uL.x * t, y: apex.y + uL.y * t };
+    const P2 = { x: apex.x + uR.x * t, y: apex.y + uR.y * t };
+
+    const bis = { x: uL.x + uR.x, y: uL.y + uR.y };
+    const bisLen = Math.hypot(bis.x, bis.y);
+    if (!bisLen) {
+      return `M ${cornerTop.x.toFixed(2)} ${cornerTop.y.toFixed(2)} L ${apex.x.toFixed(2)} ${apex.y.toFixed(
+        2
+      )} L ${cornerBot.x.toFixed(2)} ${cornerBot.y.toFixed(2)} Z`;
+    }
+    bis.x /= bisLen;
+    bis.y /= bisLen;
+
+    const centerDist = rView / sinHalf;
+    const C = { x: apex.x + bis.x * centerDist, y: apex.y + bis.y * centerDist };
+
+    const v1 = { x: P1.x - C.x, y: P1.y - C.y };
+    const v2 = { x: P2.x - C.x, y: P2.y - C.y };
+    const ang1 = Math.atan2(v1.y, v1.x);
+    const ang2 = Math.atan2(v2.y, v2.x);
+    const TAU = Math.PI * 2;
+    const deltaPos = (ang2 - ang1 + TAU) % TAU;
+    const sweepFlag = deltaPos <= Math.PI ? 1 : 0;
+
+    const rr = Math.max(0.01, rView);
+    return `M ${cornerTop.x.toFixed(2)} ${cornerTop.y.toFixed(2)} L ${P1.x.toFixed(2)} ${P1.y.toFixed(
+      2
+    )} A ${rr.toFixed(2)} ${rr.toFixed(2)} 0 0 ${sweepFlag} ${P2.x.toFixed(2)} ${P2.y.toFixed(
+      2
+    )} L ${cornerBot.x.toFixed(2)} ${cornerBot.y.toFixed(2)} Z`;
+  }
+
+  function initIntroHandleGeometry() {
+    // No-op now (intro curtain triangle is updated dynamically in applyIntro()).
+    return;
   }
 
   function initBallCollisionRadius() {
@@ -445,12 +582,14 @@
     ).join("");
 
     const scoreText = `${scoreNow}/${KEYS_TO_WIN}`;
-    const subtitle = won ? "Вы победили,\nвыберите подарок" : "";
 
     const cardContent = won
       ? `
         <p class="overlay__score">${scoreText}</p>
-        ${subtitle ? `<p class="overlay__subtitle">${subtitle.replace("\n", "<br/>")}</p>` : ""}
+        <p class="overlay__win-text">
+          <span class="overlay__win-text-title">Браво!</span>
+          Подарок ваш —<br/>забирайте
+        </p>
         <div class="prizes-list" role="list">${prizeRows}</div>
         <div class="overlay__actions">
           <button class="btn btn--primary btn--pill" data-action="restart" type="button">Играть снова</button>
@@ -459,12 +598,11 @@
       `
       : `
         <p class="overlay__score">${scoreText}</p>
+        <p class="overlay__loss-text">Ключей пока<br/>не хватает<br/>Попробуете ещё раз?</p>
         <div class="overlay__actions">
           <button class="btn btn--primary btn--pill" data-action="restart" type="button">Играть снова</button>
         </div>
-        <p class="overlay__gifts-title">Если победите, сможете выбрать</p>
-        <div class="prizes-list" role="list">${prizeRows}</div>
-        <p class="overlay__footer">${PRIZE_FOOTER}</p>
+        <!-- Footer intentionally removed for loss screen -->
       `;
 
     return `
@@ -612,6 +750,7 @@
   }
 
   function onPointerDown(e) {
+    if (!running) return;
     if (!e.isPrimary) return;
     state.pointerDown = true;
     state.pointerId = e.pointerId;
@@ -620,11 +759,13 @@
   }
 
   function onPointerMove(e) {
+    if (!running) return;
     if (!state.pointerDown || e.pointerId !== state.pointerId) return;
     setTargetFromPointer(e.clientX);
   }
 
   function onPointerUp(e) {
+    if (!running) return;
     if (e.pointerId !== state.pointerId) return;
     state.pointerDown = false;
     state.pointerId = null;
@@ -634,11 +775,6 @@
   arena.addEventListener("pointermove", onPointerMove);
   arena.addEventListener("pointerup", onPointerUp);
   arena.addEventListener("pointercancel", onPointerUp);
-
-  window.addEventListener("resize", () => {
-    // Keep geometry in sync with current norm.
-    updateTriangleAndBall(state.norm);
-  });
 
   closeBtn?.addEventListener("click", () => {
     document.querySelector(".overlay")?.remove();
@@ -666,17 +802,207 @@
     if (e.key === "ArrowRight") keys.right = false;
   });
 
+  // Intro onboarding: map strip slides right, cyan fills; then start modal.
+
+  // First this many px of pull move only triangle/ball; then cyan strip starts (--intro-p).
+  const INTRO_PRE_PX = 130;
+  const INTRO_TAP_MS = 400;
+
+  // Rounding for each layer (viewBox units will be derived from screen height).
+  const roundingPxOuter = 30;
+  const roundingPxMid = 26;
+  const roundingPxInner = 22;
+
+  let introNow = 0; // 0..1 (smoothed)
+  let introTarget = 0; // 0..1 (direct)
+  let introDragging = false;
+  let introPointerMoved = false;
+  let introStartX = 0;
+  let introStartTarget = 0;
+  let introMaxPullPx = 1;
+  let introRaf = 0;
+  let introScreenRect = { width: 1, height: 1 };
+  let introTapAnimating = false;
+  let introTapAnimStart = 0;
+  let introTapAnimFrom = 0;
+
+  function recomputeIntroMetrics() {
+    introScreenRect = screen.getBoundingClientRect();
+    introMaxPullPx = Math.max(1, introScreenRect.width);
+  }
+
+  function applyIntro(p) {
+    const pullPx = p * introMaxPullPx;
+    const preMax = Math.min(INTRO_PRE_PX, Math.max(0, introMaxPullPx - 1));
+    const pre = Math.min(preMax, pullPx);
+    const pStrip =
+      pullPx <= preMax ? 0 : (pullPx - preMax) / Math.max(1, introMaxPullPx - preMax);
+
+    introScreen.style.setProperty("--intro-p", String(clamp(pStrip, 0, 1)));
+    introScreen.style.setProperty("--intro-pre", `${pre}px`);
+
+    const c = introCatcher.getBoundingClientRect();
+    const ballOffsetPx = 45;
+    const introBallShiftLeftPx = 88;
+
+    if (introOuterPath && introMidPath && introInnerPath && c.width > 4 && c.height > 4) {
+      // Left-edge isosceles, shared apex. Blue: base = full viewBox height (0..100) → full screen height; 90° at apex.
+      const midY = 50;
+      const DEG = Math.PI / 180;
+      const wInner = 50; // half of vertical base 0..100
+      const dApex = wInner / Math.tan((90 * DEG) / 2); // = 50 for 90°
+      const wMid = dApex * Math.tan((100 * DEG) / 2);
+      const wOuter = dApex * Math.tan((110 * DEG) / 2);
+
+      const rViewOuter = (roundingPxOuter / Math.max(1, c.height)) * 100;
+      const rViewMid = (roundingPxMid / Math.max(1, c.height)) * 100;
+      const rViewInner = (roundingPxInner / Math.max(1, c.height)) * 100;
+
+      introOuterPath.removeAttribute("transform");
+      introMidPath.removeAttribute("transform");
+      introInnerPath.removeAttribute("transform");
+
+      introOuterPath.setAttribute(
+        "d",
+        buildLeftEdgeTrianglePath(midY - wOuter, midY + wOuter, dApex, midY, rViewOuter)
+      );
+      introMidPath.setAttribute(
+        "d",
+        buildLeftEdgeTrianglePath(midY - wMid, midY + wMid, dApex, midY, rViewMid)
+      );
+      introInnerPath.setAttribute(
+        "d",
+        buildLeftEdgeTrianglePath(0, 100, dApex, midY, rViewInner)
+      );
+
+      const apexXPx = (dApex / 100) * c.width;
+      introHandle.style.left = `${(apexXPx + ballOffsetPx - introBallShiftLeftPx).toFixed(2)}px`;
+      introHandle.style.top = `${(c.height / 2).toFixed(2)}px`;
+    }
+  }
+
+  function ensureIntroRaf() {
+    if (introRaf) return;
+    const step = () => {
+      if (introTapAnimating) {
+        const u = Math.min(1, (performance.now() - introTapAnimStart) / INTRO_TAP_MS);
+        const ease = 1 - (1 - u) ** 3;
+        introNow = introTapAnimFrom + (1 - introTapAnimFrom) * ease;
+        if (u >= 1) {
+          introNow = 1;
+          introTapAnimating = false;
+        }
+      } else {
+        const k = introDragging ? 0.28 : 0.34;
+        introNow = introNow + (introTarget - introNow) * k;
+        if (Math.abs(introTarget - introNow) < 0.002) introNow = introTarget;
+      }
+      applyIntro(introNow);
+
+      if (introTarget >= 0.999 && introNow >= 0.999) {
+        introRaf = 0;
+        introTapAnimating = false;
+        introScreen.classList.add("is-hidden");
+        startScreen.classList.remove("is-hidden");
+        startScreen.classList.remove("start-screen--revealing");
+        startScreen.style.removeProperty("--intro-reveal");
+        setActiveStartSlide("intro");
+        return;
+      }
+
+      if (!introDragging && introTarget === introNow && !introTapAnimating) {
+        introRaf = 0;
+        return;
+      }
+
+      introRaf = requestAnimationFrame(step);
+    };
+    introRaf = requestAnimationFrame(step);
+  }
+
+  function setIntroTarget(p) {
+    introTarget = clamp(p, 0, 1);
+    ensureIntroRaf();
+  }
+
+  introHandle.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary) return;
+    recomputeIntroMetrics();
+    introTapAnimating = false;
+    introDragging = true;
+    introPointerMoved = false;
+    introStartX = e.clientX;
+    introStartTarget = introTarget;
+    introHandle.setPointerCapture(e.pointerId);
+
+    introScreen.classList.add("is-dragging");
+    ensureIntroRaf();
+  });
+
+  introHandle.addEventListener("pointermove", (e) => {
+    if (!introDragging) return;
+    const dx = e.clientX - introStartX;
+    if (Math.abs(dx) > 8) introPointerMoved = true;
+    const p = introStartTarget + dx / introMaxPullPx;
+    setIntroTarget(p);
+  });
+
+  introHandle.addEventListener("pointerup", () => {
+    if (!introDragging) return;
+    introDragging = false;
+    introScreen.classList.remove("is-dragging");
+
+    if (!introPointerMoved) {
+      introTapAnimating = true;
+      introTapAnimStart = performance.now();
+      introTapAnimFrom = introNow;
+      setIntroTarget(1);
+      return;
+    }
+    if (introTarget >= 0.86) setIntroTarget(1);
+    else setIntroTarget(0);
+  });
+
+  introHandle.addEventListener("pointercancel", () => {
+    if (!introDragging) return;
+    introDragging = false;
+    introScreen.classList.remove("is-dragging");
+    setIntroTarget(0);
+  });
+
+  window.addEventListener("resize", () => {
+    updateTriangleAndBall(state.norm);
+    recomputeIntroMetrics();
+    if (!introScreen.classList.contains("is-hidden")) applyIntro(introNow);
+  });
+
   // init
   setLives(LIVES_MAX);
   setScore(0);
   resetCatcher();
-  showStart();
+
+  recomputeIntroMetrics();
+  introScreen.classList.remove("is-hidden");
+  startScreen.classList.add("is-hidden");
+  startScreen.classList.remove("start-screen--revealing");
+  startScreen.style.removeProperty("--intro-reveal");
+  introNow = 0;
+  introTarget = 0;
+  applyIntro(0);
+  renderStartPrizes();
+  setActiveStartSlide("intro");
+  ensureIntroRaf();
 
   startBtn.addEventListener("click", () => {
+    if (introTarget < 0.98) return;
     document.querySelector(".overlay")?.remove();
     resetGame();
     hideStart();
     start();
+  });
+
+  rulesBtn?.addEventListener("click", () => {
+    setActiveStartSlide("rules");
   });
 })();
 
