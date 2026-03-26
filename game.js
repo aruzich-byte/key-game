@@ -506,7 +506,11 @@
 
   function spawnOne() {
     if (!running) return;
-    const rA = arenaRect();
+    if (!layout.ok || !layout.arena) {
+      scheduleMeasureLayout();
+      return;
+    }
+    const rA = layout.arena;
 
     const types = ["key1", "key2", "key3", "key4", "thief", "granny", "invis"];
     const weights = [0.18, 0.16, 0.18, 0.16, 0.14, 0.12, 0.06];
@@ -523,7 +527,7 @@
     }
 
     const it = createItem(picked);
-    it.x = 24 + Math.random() * (rA.width - 48);
+    it.x = 24 + Math.random() * Math.max(1, (rA.width - 48));
     it.y = -62;
     it.v = 300 + Math.random() * 210; // быстрее -> сложнее
 
