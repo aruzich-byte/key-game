@@ -119,12 +119,32 @@
     pointerId: null,
   };
 
-  function arenaRect() {
-    return arena.getBoundingClientRect();
+  // Mobile browsers can change viewport height while playing (address bar, safe-area),
+  // so measuring every frame may cause occasional jumps. We cache layout and update it
+  // on resize/visualViewport events.
+  const layout = {
+    arena: null,
+    catcher: null,
+    ok: false,
+  };
+  let layoutRaf = 0;
+
+  function measureLayout() {
+    const a = arena.getBoundingClientRect();
+    const c = catcher.getBoundingClientRect();
+    layout.arena = a;
+    layout.catcher = c;
+    layout.ok = Boolean(a && c && a.width > 10 && a.height > 10 && c.width > 10 && c.height > 10);
   }
 
-  function catcherRect() {
-    return catcher.getBoundingClientRect();
+  function scheduleMeasureLayout() {
+    if (layoutRaf) return;
+    layoutRaf = requestAnimationFrame(() => {
+      layoutRaf = 0;
+      measureLayout();
+      // Keep visuals in sync after layout changes.
+      if (layout.ok) updateTriangleAndBall(state.norm);
+    });
   }
 
   function buildTrianglePath(L, R, apexX, apexY, rView) {
@@ -295,8 +315,12 @@
   function updateTriangleAndBall(norm) {
     initBallCollisionRadius();
 
-    const c = catcherRect();
-    const a = arenaRect();
+    const c = layout.catcher;
+    const a = layout.arena;
+    if (!layout.ok || !c || !a) {
+      scheduleMeasureLayout();
+      return;
+    }
 
     // Triangle geometry (viewBox 0..100)
     // База должна совпадать с краями экрана: используем X=0..100.
@@ -700,7 +724,13 @@
     if (Math.abs(state.targetNorm - state.norm) < 0.001) state.norm = state.targetNorm;
     updateTriangleAndBall(state.norm);
 
-    const rA = arenaRect();
+    if (!layout.ok || !layout.arena) {
+      scheduleMeasureLayout();
+      raf = requestAnimationFrame(tick);
+      return;
+    }
+
+    const rA = layout.arena;
     const p = { x: state.px, y: state.py, r: state.pr };
 
     for (let i = items.length - 1; i >= 0; i--) {
@@ -740,7 +770,11 @@
   }
 
   function setTargetFromPointer(clientX) {
-    const rC = catcherRect();
+    const rC = layout.catcher;
+    if (!layout.ok || !rC) {
+      scheduleMeasureLayout();
+      return;
+    }
     const x = clientX - rC.left;
     // Sync pointer range with apex shift in updateTriangleAndBall.
     const apexShiftView = 50;
@@ -970,17 +1004,25 @@
     setIntroTarget(0);
   });
 
-  window.addEventListener("resize", () => {
-    updateTriangleAndBall(state.norm);
+  function onViewportChange() {
+    scheduleMeasureLayout();
     recomputeIntroMetrics();
     if (!introScreen.classList.contains("is-hidden")) applyIntro(introNow);
-  });
+  }
+
+  window.addEventListener("resize", onViewportChange);
+  // On mobile Safari/Chrome the visual viewport can change without a classic resize.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", onViewportChange);
+    window.visualViewport.addEventListener("scroll", onViewportChange);
+  }
 
   // init
   setLives(LIVES_MAX);
   setScore(0);
   resetCatcher();
 
+  measureLayout();
   recomputeIntroMetrics();
   introScreen.classList.remove("is-hidden");
   startScreen.classList.add("is-hidden");
